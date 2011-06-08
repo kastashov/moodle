@@ -117,13 +117,41 @@ $string['groupsvisible'] = 'Visible groups';
 $string['grouptemplate'] = 'Group @';
 $string['hidepicture'] = 'Hide picture';
 $string['importgroups'] = 'Import groups';
-$string['importgroups_help'] = 'Groups may be imported via text file. The format of the file should be as follows:
+$string['importgroups_help'] = 'Groups may be imported via text file (CSV). The format of the file should be as follows:
 
 * Each line of the file contains one record
-* Each record is a series of data separated by commas
+* Each record is a series of data (field values) separated by commas
+* Any comma within the field value should be coded as &#44
 * The first record contains a list of fieldnames defining the format of the rest of the file
 * Required fieldname is groupname
-* Optional fieldnames are description, enrolmentkey, picture, hidepicture';
+* Optional fieldnames are coursename, idnumber, description, enrolmentkey, userid
+
+If coursename field is not set, current course is used.
+
+The fields that are automatically detected as being groupname are:
+
+* groupname
+* group
+
+The fields that are automatically detected as being userid are:
+
+* user
+* userid
+* username
+* user id
+* login
+* login name 
+* studentid
+* student id
+
+This tool will create new groups if they don\'t already exist. If userid is set it will not only create new groups but may be used to automatically assign users to groups. Users must exist and be enrolled in the course.
+
+Sample CSV file:
+<pre>coursename,userid,group
+CF101Eng,z12345678,Group1
+CF101Eng,z87654321,Group2 
+CF101Eng,z23523432,Group2</pre>
+';
 $string['importgroups_link'] = 'group/import';
 $string['javascriptrequired'] = 'This page requires JavaScript to be enabled.';
 $string['members'] = 'Members per group';
@@ -163,3 +191,9 @@ $string['toomanygroups'] = 'Insufficient users to populate this number of groups
 $string['usercount'] = 'User count';
 $string['usercounttotal'] = 'User count ({$a})';
 $string['usergroupmembership'] = 'Selected user\'s membership:';
+
+$string['groupmembershipexists'] = 'User {$a->member} is already a member of group {$a->name}';
+$string['groupmembershipadded'] = 'User {$a->member} added as a member of group {$a->name}';
+$string['groupmembershipfailed'] = 'Unable to add {$a->member} as a member of group {$a->name}';
+$string['notenrolledincourse'] = 'User {$a->member} is not enrolled in this course.';
+$string['usernotfoundskip'] = 'User {$a->member} skipped: user not found or invalid userid.';

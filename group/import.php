@@ -86,10 +86,27 @@ if ($mform_post->is_cancelled()) {
 
     // --- get header (field names) ---
     $header = explode($csv_delimiter, array_shift($rawlines));
+
+    $fieldslikeusername = array ('/^user$/i',
+                                 '/^userid$/i',
+                                 '/^username$/i',
+                                 '/^user id$/i',
+                                 '/^login$/i',
+                                 '/^login name$/i',
+                                 '/^studentid$/i',
+                                 '/^student id$/i',
+                                );
+
+    $fieldslikegroupname = '/^group$/i';
+
     // check for valid field names
     foreach ($header as $i => $h) {
-        $h = trim($h); $header[$i] = $h; // remove whitespace
-        if (!(isset($required[$h]) or isset($optionalDefaults[$h]) or isset($optional[$h]))) {
+        $header[$i] = trim($h,' "\''); // remove whitespace and quotes
+        $header[$i] = preg_replace($fieldslikeusername, 'member', trim($header[$i]));
+        $header[$i] = preg_replace($fieldslikegroupname, 'groupname', trim($header[$i]));
+        $h = $header[$i];
+
+        if (!(isset($required[$h]) or isset($optionalDefaults[$h]) or isset($optional[$h]) or $h=='member')) {
                 print_error('invalidfieldname', 'error', 'import.php?id='.$id, $h);
             }
         if (isset($required[$h])) {
@@ -122,6 +139,7 @@ if ($mform_post->is_cancelled()) {
 
             // add fields to object $user
             foreach ($record as $name => $value) {
+                $value = trim($value,' "\''); // remove whitespace and quotes
                 // check for required values
                 if (isset($required[$name]) and !$value) {
                     print_error('missingfield', 'error', 'import.php?id='.$id, $name);
@@ -187,11 +205,37 @@ if ($mform_post->is_cancelled()) {
                     }
                     if ($groupid = groups_get_group_by_name($newgroup->courseid, $groupname)) {
                         echo $OUTPUT->notification("$groupname :".get_string('groupexistforcourse', 'error', $groupname));
+                        $adduser = true;
                     } else if (groups_create_group($newgroup)) {
                         echo $OUTPUT->notification(get_string('groupaddedsuccesfully', 'group', $groupname), 'notifysuccess');
+                        $adduser = true;
                     } else {
                         echo $OUTPUT->notification(get_string('groupnotaddederror', 'error', $groupname));
+                        $adduser = false;
                     }
+
+                    //If there is userdata, add them to the group
+                    if ($adduser && isset($newgroup->member) && ($newmember = $DB->get_record( 'user',Array('username'=>$newgroup->member) ))) {
+                        $gid = groups_get_group_by_name($newgroup->courseid, $groupname);
+                        $groups = groups_get_user_groups($newgroup->courseid, $newmember->id);
+                        //Permissions check
+                        if(!has_capability('moodle/course:managegroups', $context)) {
+                            echo $OUTPUT->notification(get_string('nopermission'));
+                        } else if(in_array($gid,$groups['0'])) {
+                            echo $OUTPUT->notification(get_string('groupmembershipexists', 'group', array('name'=>$newgroup->name,'member'=>$newgroup->member) ));
+                        } else if(!groups_add_member($gid, $newmember->id)) {
+                            if(!is_enrolled(get_context_instance(CONTEXT_COURSE, $newgroup->courseid), $newmember->id)) {
+                                echo $OUTPUT->notification(get_string('notenrolledincourse', 'group', array('name'=>$newgroup->name,'member'=>$newgroup->member) ));
+                            } else {
+                                echo $OUTPUT->notification(get_string('groupmembershipfailed', 'group', array('name'=>$newgroup->name,'member'=>$newgroup->member) ));
+                            }
+                        } else {
+                            echo $OUTPUT->notification(get_string('groupmembershipadded', 'group', array('name'=>$newgroup->name,'member'=>$newgroup->member)), 'notifysuccess' );
+                        }
+                    } else {
+                        echo $OUTPUT->notification(get_string('usernotfoundskip', 'group', array('name'=>$newgroup->name,'member'=>$newgroup->member)));
+                    }
+
                 }
             }
             unset ($newgroup);
