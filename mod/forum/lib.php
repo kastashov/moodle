@@ -5481,7 +5481,7 @@ function forum_print_latest_discussions($course, $forum, $maxdiscussions=-1, $di
  * @param mixed $canreply
  * @param bool $canrate
  */
-function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false) {
+function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false, $showallposts=false) {
     global $USER, $CFG;
 
     require_once($CFG->dirroot.'/rating/lib.php');
@@ -5569,7 +5569,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
             break;
 
         case FORUM_MODE_THREADED :
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts);
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts, $showallposts);
             break;
 
         case FORUM_MODE_NESTED :
@@ -5627,7 +5627,7 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
  * @uses CONTEXT_MODULE
  * @return void
  */
-function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts) {
+function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts, $showallposts=false) {
     global $USER, $CFG;
 
     $link  = false;
@@ -5641,7 +5641,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
         foreach ($posts as $post) {
 
             echo '<div class="indent">';
-            if ($depth > 0) {
+            if ($showallposts || $depth > 0 ) {
                 $ownpost = ($USER->id == $post->userid);
                 $post->subject = format_string($post->subject);
 
@@ -5649,6 +5649,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
 
                 forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
                                      '', '', $postread, true, $forumtracked);
+                forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts, $showallposts);
             } else {
                 if (!forum_user_can_see_post($forum, $discussion, $post, NULL, $cm)) {
                     echo "</div>\n";
@@ -5667,13 +5668,28 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
                 } else {
                     $style = '<span class="forumthread">';
                 }
-                echo $style."<a name=\"$post->id\"></a>".
-                     "<a href=\"discuss.php?d=$post->discussion&amp;parent=$post->id\">".format_string($post->subject,true)."</a> ";
-                print_string("bynameondate", "forum", $by);
-                echo "</span>";
-            }
 
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts);
+                echo "<div id='divdiscussionthreadbox{$post->id}' style='overflow:hidden;  display:block; height:auto;'>"; // box container to store height value for slide animation
+                    echo "<div id='divdiscussionthread{$post->id}' style='overflow:hidden; display:block; visibility: visible;'>";
+                        echo $style."
+                             <a name=\"$post->id\"></a>".
+                             "<a href=\"#\" onclick=\"load_thread($post->id)\"><small id='smallplus{$post->id}'>[+]</small> ".format_string($post->subject,true)."</a>";
+                        echo '<span class="forum-by">&nbsp;';
+                        print_string("bynameondate", "forum", $by);
+                        echo "</span></span>";
+                        echo "<div id='divpost{$post->id}'></div>"; // for post headers
+                        forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts, $showallposts);
+                    echo "</div>"; 
+                echo "</div>";
+    
+                echo "<div id='divpostsloading{$post->id}' style='display:none;'></div>"; // for 'Loading...'
+                echo "<div id='divpostsbox{$post->id}' style='overflow:hidden;  display:block; height:0;'>"; // box container to store height for slide animation
+                    echo "<div id='divposts{$post->id}' style='overflow:hidden; display:block; visibility: hidden;'></div>"; // main div for AJAX loaded post contents
+                echo "</div>"; 
+
+                echo "<div id='divdiscussionthreadclose{$post->id}' style='display:none;padding-bottom:5px;'><a href=\"#\" onclick=\"close_thread($post->id)\">[-] Close</a></div>"; //close link
+			}
+
             echo "</div>\n";
         }
     }

@@ -104,6 +104,14 @@
     $completion = new completion_info($course);
     $completion->set_module_viewed($cm);
 
+/// Fix forum AJAX threaded view not working on a single discussion forum
+if ($forum->type == 'single') {
+    $PAGE->requires->js('/mod/forum/forum.js');
+    $PAGE->requires->yui2_lib('event');
+    $PAGE->requires->yui2_lib('connection');
+    $PAGE->requires->yui2_lib('json');
+}
+
 /// Print header.
 
     $PAGE->set_title(format_string($forum->name));

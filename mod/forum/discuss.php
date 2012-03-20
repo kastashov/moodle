@@ -25,8 +25,9 @@
  */
 
     require_once('../../config.php');
+    $PAGE->requires->js('/mod/forum/forum.js');
 
-    $d      = required_param('d', PARAM_INT);                // Discussion ID
+	$d      = required_param('d', PARAM_INT);                // Discussion ID
     $parent = optional_param('parent', 0, PARAM_INT);        // If set, then display this post and all children.
     $mode   = optional_param('mode', 0, PARAM_INT);          // If set, changes the layout of the thread
     $move   = optional_param('move', 0, PARAM_INT);          // If set, moves this discussion to another forum
