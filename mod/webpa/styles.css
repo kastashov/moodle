@@ -1,0 +1,35 @@
+.mod-webpa
+{
+	text-align:center;
+}
+
+.mod-webpa .content-area
+{
+	margin:auto;
+	margin-top:10px;
+	border:1px solid #777;
+	text-align:left;
+	padding:10px;
+	width:450px;
+}
+
+.mod-webpa .content-area h1
+{
+	font-size:2.1em;
+	color:#999;
+	margin:0px;
+	padding:0px;
+}
+
+.mod-webpa #marks-table th
+{
+	padding:3px;
+	font-size:0.8em;
+}
+
+.mod-webpa .description
+{
+	margin:10px 0px;
+	background-color:#F5F5F5;
+	padding:5px;
+}

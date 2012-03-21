@@ -1,0 +1,45 @@
+#!/usr/bin/env php
+<?php
+
+error_reporting(E_ALL);
+define('CLI_SCRIPT', true);
+
+require_once('../../config.php');
+require_once('libsso.php');
+
+global $DB;
+
+if($argc != 2)
+{
+	trigger_error("Usage: keygen site-name > keysfile", E_USER_NOTICE);
+	exit;
+}
+
+//get site
+$site = sso_site_for_name($argv[1]);
+
+if ($site === false) {
+	die("Site {$argv[1]} not found.\n");
+}
+
+//generate keys
+$keys = array();
+for($i = 0; $i < 20; $i ++)
+{
+	$keys[$i] = sso_generate_key($site->id);
+}
+
+//print them out
+foreach($keys as $k)
+{
+	echo $k . "\n";
+}
+
+//insert into DB
+foreach($keys as $k)
+{
+	$kobj = new Object();
+	$kobj->site_id = $site->id;
+	$kobj->pskey = $k;
+	$rslt = $DB->insert_record('local_sso_keys',$kobj);
+}

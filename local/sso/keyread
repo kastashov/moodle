@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+
+<?php
+
+//This next bit is optional if you're not storing the server ID (ie if you're only expecting SSO from one location)
+if($argc != 2)
+{
+	echo "Usage: keyread site-name < keysfile";
+	exit;
+}
+$serverid = $argv[1];
+
+foreach($keys as $b64key)
+{
+	$key = base64_decode($b64key);
+	
+	if(!empty($key))
+	{
+		//YOUR DB INSERT CODE HERE.
+		//Don't forget to escape the key, it's raw binary
+		
+	}
+}

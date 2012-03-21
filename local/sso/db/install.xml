@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="blocks/community/db" VERSION="20110623" COMMENT="XMLDB file for Moodle blocks/community"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_sso_sites" COMMENT="local_sso_sites" NEXT="local_sso_keys">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="11" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="name"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" PREVIOUS="id" NEXT="url"/>
+        <FIELD NAME="url" TYPE="text" LENGTH="small" NOTNULL="true" SEQUENCE="false" PREVIOUS="name"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="name" TYPE="unique" FIELDS="name" NEXT="id"/>
+        <KEY NAME="id" TYPE="primary" FIELDS="id" PREVIOUS="name"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="local_sso_keys" COMMENT="local_sso_keys" PREVIOUS="local_sso_sites">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="11" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="site_id"/>
+        <FIELD NAME="site_id" TYPE="int" LENGTH="11" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="id" NEXT="pskey"/>
+        <FIELD NAME="pskey" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false" PREVIOUS="site_id"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="site_key" TYPE="unique" FIELDS="site_id, pskey" NEXT="id"/>
+        <KEY NAME="id" TYPE="primary" FIELDS="id" PREVIOUS="site_key"/>
+      </KEYS>
+    </TABLE>
+  </TABLES>
+</XMLDB>
