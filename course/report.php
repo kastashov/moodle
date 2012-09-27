@@ -3,6 +3,8 @@
 
     require_once('../config.php');
 
+    ini_set('memory_limit', '256M');
+
     $id = required_param('id', PARAM_INT);   // course id to import TO
     $course = $DB->get_record('course', array('id'=>$id), '*', MUST_EXIST);
 

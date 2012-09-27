@@ -1772,6 +1772,7 @@ $string['users'] = 'Users';
 $string['userselectorautoselectunique'] = 'If only one user matches the search, select them automatically';
 $string['userselectorpreserveselected'] = 'Keep selected users, even if they no longer match the search';
 $string['userselectorsearchanywhere'] = 'Match the search text anywhere in the displayed fields';
+$string['usersexportcsv'] = 'Download as CSV';
 $string['usersnew'] = 'New users';
 $string['usersnoaccesssince'] = 'Inactive for more than';
 $string['userswithfiles'] = 'Users with files';

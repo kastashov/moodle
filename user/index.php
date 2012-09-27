@@ -795,6 +795,7 @@
             $displaylist['addnote.php'] = get_string('addnewnote', 'notes');
             $displaylist['groupaddnote.php'] = get_string('groupaddnewnote', 'notes');
         }
+        $displaylist['exportcsv.php'] = get_string('usersexportcsv');
 
         echo $OUTPUT->help_icon('withselectedusers');
         echo html_writer::tag('label', get_string("withselectedusers"), array('for'=>'formactionid'));
