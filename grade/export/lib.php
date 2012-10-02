@@ -215,6 +215,9 @@ abstract class grade_export {
              '<th>'.get_string("institution")."</th>".
              '<th>'.get_string("department")."</th>".
              '<th>'.get_string("email")."</th>";
+        if (!$this->onlyactive) {
+             echo '<th>'.get_string("suspended")."</th>";
+        }
         foreach ($this->columns as $grade_item) {
             echo '<th>'.$this->format_column_name($grade_item).'</th>';
 
@@ -270,6 +273,10 @@ abstract class grade_export {
 
             echo '<tr>';
             echo "<td>$user->firstname</td><td>$user->lastname</td><td>$user->idnumber</td><td>$user->institution</td><td>$user->department</td><td>$user->email</td>";
+            if (!$this->onlyactive) {
+                $issuspended = ($user->suspendedenrolment) ? get_string('yes') : '';
+                echo "<td>$issuspended</td>";
+            }
             echo $rowstr;
             echo "</tr>";
 

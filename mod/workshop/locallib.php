@@ -640,6 +640,15 @@ class workshop {
         }
         $sql .= " WHERE s.example = 0 AND s.workshopid = :workshopid";
 
+        // exclude suspended enrolled students
+        $coursecontext = context_course::instance($this->course->id);
+        $susers = get_suspended_userids($coursecontext);
+        if (!empty($susers)) {
+            list($susql, $suparams) = $DB->get_in_or_equal($susers, SQL_PARAMS_NAMED, 'su', false); // not in ()...
+            $sql .= " AND u.id $susql";
+            $params += $suparams;
+        }
+
         if ('all' === $authorid) {
             // no additional conditions
         } elseif (!empty($authorid)) {
@@ -685,6 +694,15 @@ class workshop {
         }
         $sql .= " LEFT JOIN {user} t ON (s.gradeoverby = t.id)
                  WHERE s.example = 0 AND s.workshopid = :workshopid";
+
+        // exclude suspended enrolled students
+        $coursecontext = context_course::instance($this->course->id);
+        $susers = get_suspended_userids($coursecontext);
+        if (!empty($susers)) {
+            list($susql, $suparams) = $DB->get_in_or_equal($susers, SQL_PARAMS_NAMED, 'su', false); // not in ()...
+            $sql .= " AND u.id $susql";
+            $params += $suparams;
+        }
 
         if ('all' === $authorid) {
             // no additional conditions
@@ -1030,6 +1048,15 @@ class workshop {
         $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
         $authorfields   = user_picture::fields('author', null, 'authorid', 'author');
         $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+
+        // exclude suspended enrolled students
+        $coursecontext = context_course::instance($this->course->id);
+        $susers = get_suspended_userids($coursecontext);
+        if (!empty($susers)) {
+            list($susql, $suparams) = $DB->get_in_or_equal($susers, SQL_PARAMS_NAMED, 'su', false); // not in ()...
+            $susql .= " AND u.id $susql";
+        }
+
         $sql = "SELECT a.id, a.submissionid, a.reviewerid, a.timecreated, a.timemodified,
                        a.grade, a.gradinggrade, a.gradinggradeover, a.gradinggradeoverby,
                        $reviewerfields, $authorfields, $overbyfields,
@@ -1039,9 +1066,10 @@ class workshop {
             INNER JOIN {workshop_submissions} s ON (a.submissionid = s.id)
             INNER JOIN {user} author ON (s.authorid = author.id)
              LEFT JOIN {user} overby ON (a.gradinggradeoverby = overby.id)
-                 WHERE s.workshopid = :workshopid AND s.example = 0
+                 WHERE s.workshopid = :workshopid AND s.example = 0 $susql
               ORDER BY reviewer.lastname, reviewer.firstname";
         $params = array('workshopid' => $this->id);
+        $params += $suparams;
 
         return $DB->get_records_sql($sql, $params);
     }

@@ -7455,3 +7455,60 @@ function get_related_contexts_string(context $context) {
         return (' ='.$context->id);
     }
 }
+
+/**
+ * Given context and array of users, returns array of users whose enrolment is suspended,
+ * also removes those users from the given array
+ *
+ * @param context $context
+ * @param array $users
+ * @param array $ignoreusers    - array of user ids to ignore, e.g. guest
+ * @return array
+ */
+function extract_suspended_users($context, &$users, $ignoreusers=array()) {
+    global $DB;
+
+    // get active enrolled users
+    list($sql, $params) = get_enrolled_sql($context, null, null, true);
+    $activeusers = $DB->get_records_sql($sql, $params);
+
+    // move suspended users to a separate array & remove from the initial one
+    $susers = array();
+    if (sizeof($activeusers)) {
+        foreach ($users as $userid => $user) {
+            if (!array_key_exists($userid, $activeusers) && !in_array($userid, $ignoreusers)) {
+                $susers[$userid] = $user;
+                unset($users[$userid]);
+            }
+        }
+    }
+    return $susers;
+}
+
+/**
+ * Given context and array of users, returns array of user ids whose enrolment is suspended
+ *
+ * @param context $context
+ * @return array
+ */
+function get_suspended_userids($context){
+    global $DB;
+
+    // get all enrolled users
+    list($sql, $params) = get_enrolled_sql($context);
+    $users = $DB->get_records_sql($sql, $params);
+
+    // get active enrolled users
+    list($sql, $params) = get_enrolled_sql($context, null, null, true);
+    $activeusers = $DB->get_records_sql($sql, $params);
+
+    $susers = array();
+    if (sizeof($activeusers) != sizeof($users)) {
+        foreach ($users as $userid => $user) {
+            if (!array_key_exists($userid, $activeusers)) {
+                $susers[$userid] = $userid;
+            }
+        }
+    }
+    return $susers;
+}

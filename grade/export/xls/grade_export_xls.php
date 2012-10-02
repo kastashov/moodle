@@ -50,6 +50,10 @@ class grade_export_xls extends grade_export {
         $myxls->write_string(0,4,get_string("department"));
         $myxls->write_string(0,5,get_string("email"));
         $pos=6;
+        if (!$this->onlyactive) {
+            $myxls->write_string(0,6,get_string("suspended"));
+            $pos++;
+        }
         foreach ($this->columns as $grade_item) {
             $myxls->write_string(0, $pos++, $this->format_column_name($grade_item));
 
@@ -76,6 +80,11 @@ class grade_export_xls extends grade_export {
             $myxls->write_string($i,4,$user->department);
             $myxls->write_string($i,5,$user->email);
             $j=6;
+            if (!$this->onlyactive) {
+                $issuspended = ($user->suspendedenrolment) ? get_string('yes') : '';
+                $myxls->write_string($i, 6, $issuspended);
+                $j++;
+            }
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {
                     $status = $geub->track($grade);
