@@ -210,9 +210,11 @@ function quiz_report_grade_bands($bandwidth, $bands, $quizid, $userids = array()
         $quiz = $DB->get_record('quiz', array('id' => $quizid));
         $context = context_course::instance($quiz->course);
         $susers = get_suspended_userids($context);
-        list($susql, $suparams) = $DB->get_in_or_equal($susers, SQL_PARAMS_NAMED, 'su', false); // not in ()...
-        $susql = " AND qg.userid $susql";
-        $params += $suparams;
+        if (!empty($susers)) {
+            list($susql, $suparams) = $DB->get_in_or_equal($susers, SQL_PARAMS_NAMED, 'su', false); // not in ()...
+            $susql = " AND qg.userid $susql";
+            $params += $suparams;
+        }
     } else {
         $susql = '';
     }
