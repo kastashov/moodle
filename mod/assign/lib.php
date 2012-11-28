@@ -179,7 +179,7 @@ function assign_grading_areas_list() {
  * @return void
  */
 function assign_extend_settings_navigation(settings_navigation $settings, navigation_node $navref) {
-    global $PAGE, $DB;
+    global $PAGE, $DB, $CFG;
 
     $cm = $PAGE->cm;
     if (!$cm) {
@@ -206,8 +206,12 @@ function assign_extend_settings_navigation(settings_navigation $settings, naviga
        $link = new moodle_url('/mod/assign/view.php', array('id' => $cm->id,'action'=>'grading'));
        $node = $navref->add(get_string('viewgrading', 'assign'), $link, navigation_node::TYPE_SETTING);
 
-       $link = new moodle_url('/mod/assign/view.php', array('id' => $cm->id,'action'=>'downloadall'));
-       $node = $navref->add(get_string('downloadall', 'assign'), $link, navigation_node::TYPE_SETTING);
+       require_once($CFG->dirroot . '/mod/assign/locallib.php');
+       $assignment = new assign($context, $cm, $course);
+       if ($assignment->count_submissions()) {
+           $link = new moodle_url('/mod/assign/view.php', array('id' => $cm->id,'action'=>'downloadall'));
+           $node = $navref->add(get_string('downloadall', 'assign'), $link, navigation_node::TYPE_SETTING);
+       }
    }
 
    if (has_capability('mod/assign:revealidentities', $context)) {
