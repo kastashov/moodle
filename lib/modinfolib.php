@@ -260,6 +260,7 @@ class course_modinfo extends stdClass {
         $this->course = $course;
 
         // Load modinfo field into memory as PHP object and check it's valid
+        $course->modinfo = str_replace("~~NULL_BYTE~~", "\0", $course->modinfo);
         $info = unserialize($course->modinfo);
         if (!is_array($info)) {
             // hmm, something is wrong - lets try to fix it
@@ -1455,6 +1456,7 @@ function rebuild_course_cache($courseid=0, $clearonly=false) {
     $rs = $DB->get_recordset("course", $select,'','id,fullname');
     foreach ($rs as $course) {
         $modinfo = serialize(get_array_of_activities($course->id));
+        $modinfo = str_replace("\0", "~~NULL_BYTE~~", $modinfo);  // to make the string manageable by PostgreSQL
         $sectioncache = serialize(course_modinfo::build_section_cache($course->id));
         $updateobj = (object)array('id' => $course->id,
                 'modinfo' => $modinfo, 'sectioncache' => $sectioncache);
