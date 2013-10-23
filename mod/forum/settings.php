@@ -81,6 +81,13 @@ if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configcheckbox('forum_usermarksread', get_string('usermarksread', 'forum'),
                        get_string('configusermarksread', 'forum'), 0));
 
+    // Digest type setting.
+    $options = array();
+    $options[FORUM_DIGESTTYPEFULL] = get_string('digesttypefull', 'forum');
+    $options[FORUM_DIGESTTYPEPERCOURSE] = get_string('digesttypepercourse', 'forum');
+    $settings->add(new admin_setting_configselect('forum_digesttype', get_string('digesttype', 'forum'),
+                       get_string('configdigesttype', 'forum'), FORUM_DIGESTTYPEFULL, $options));
+
     $options = array();
     for ($i = 0; $i < 24; $i++) {
         $options[$i] = sprintf("%02d",$i);

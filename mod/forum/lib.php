@@ -71,6 +71,9 @@ if (!defined('FORUM_CRON_USER_CACHE')) {
     define('FORUM_CRON_USER_CACHE', 5000);
 }
 
+define('FORUM_DIGESTTYPEFULL', 0);
+define('FORUM_DIGESTTYPEPERCOURSE', 1);
+
 /// STANDARD FUNCTIONS ///////////////////////////////////////////////////////////
 
 /**
@@ -840,6 +843,7 @@ function forum_cron() {
 
             // We have work to do
             $usermailcount = 0;
+            $usercount = 0;
 
             //caches - reuse the those filled before too
             $discussionposts = array();
@@ -886,14 +890,18 @@ function forum_cron() {
                         continue;
                     }
                 }
-                $userdiscussions[$digestpost->userid][$digestpost->discussionid] = $digestpost->discussionid;
+                // If digest type is full (one email for all courses, then store all discussions under courseid=0.
+                $digestcourseid = 0;
+                if ($CFG->forum_digesttype == FORUM_DIGESTTYPEPERCOURSE) {
+                    $digestcourseid = $courseid;
+                }
+                $userdiscussions[$digestpost->userid][$digestcourseid][$digestpost->discussionid] = $digestpost->discussionid;
                 $discussionposts[$digestpost->discussionid][$digestpost->postid] = $digestpost->postid;
             }
             $digestposts_rs->close(); /// Finished iteration, let's close the resultset
 
             // Data collected, start sending out emails to each user
-            foreach ($userdiscussions as $userid => $thesediscussions) {
-
+            foreach ($userdiscussions as $userid => $coursediscussions) {
                 @set_time_limit(120); // terminate if processing of any account takes longer than 2 minutes
 
                 cron_setup_user();
@@ -913,175 +921,189 @@ function forum_cron() {
                 }
                 $userto->viewfullnames = array();
                 $userto->canpost       = array();
-                $userto->markposts     = array();
 
                 // Override the language and timezone of the "current" user, so that
                 // mail is customised for the receiver.
                 cron_setup_user($userto);
+                $mailerrors = false;
 
-                $postsubject = get_string('digestmailsubject', 'forum', format_string($site->shortname, true));
-
-                $headerdata = new stdClass();
-                $headerdata->sitename = format_string($site->fullname, true);
-                $headerdata->userprefs = $CFG->wwwroot.'/user/edit.php?id='.$userid.'&amp;course='.$site->id;
-
-                $posttext = get_string('digestmailheader', 'forum', $headerdata)."\n\n";
-                $headerdata->userprefs = '<a target="_blank" href="'.$headerdata->userprefs.'">'.get_string('digestmailprefs', 'forum').'</a>';
-
-                $posthtml = "<head>";
-/*                foreach ($CFG->stylesheets as $stylesheet) {
-                    //TODO: MDL-21120
-                    $posthtml .= '<link rel="stylesheet" type="text/css" href="'.$stylesheet.'" />'."\n";
-                }*/
-                $posthtml .= "</head>\n<body id=\"email\">\n";
-                $posthtml .= '<p>'.get_string('digestmailheader', 'forum', $headerdata).'</p><br /><hr size="1" noshade="noshade" />';
-
-                foreach ($thesediscussions as $discussionid) {
-
-                    @set_time_limit(120);   // to be reset for each post
-
-                    $discussion = $discussions[$discussionid];
-                    $forum      = $forums[$discussion->forum];
-                    $course     = $courses[$forum->course];
-                    $cm         = $coursemodules[$forum->id];
-
-                    //override language
-                    cron_setup_user($userto, $course);
-
-                    // Fill caches
-                    if (!isset($userto->viewfullnames[$forum->id])) {
-                        $modcontext = context_module::instance($cm->id);
-                        $userto->viewfullnames[$forum->id] = has_capability('moodle/site:viewfullnames', $modcontext);
+                foreach ($coursediscussions as $courseid => $thesediscussions) {
+                    $headerspec = '';
+                    if ($CFG->forum_digesttype == FORUM_DIGESTTYPEPERCOURSE) {
+                        $course     = $courses[$courseid];
+                        $headerspec = $course->shortname;
+                    } else if ($CFG->forum_digesttype == FORUM_DIGESTTYPEFULL) {
+                        $headerspec = $site->shortname;
                     }
-                    if (!isset($userto->canpost[$discussion->id])) {
-                        $modcontext = context_module::instance($cm->id);
-                        $userto->canpost[$discussion->id] = forum_user_can_post($forum, $discussion, $userto, $cm, $course, $modcontext);
-                    }
+                    $postsubject = get_string('digestmailsubject', 'forum', format_string($headerspec, true));
 
-                    $strforums      = get_string('forums', 'forum');
-                    $canunsubscribe = ! forum_is_forcesubscribed($forum);
-                    $canreply       = $userto->canpost[$discussion->id];
-                    $shortname = format_string($course->shortname, true, array('context' => context_course::instance($course->id)));
+                    $headerdata = new stdClass();
+                    $headerdata->sitename = format_string($site->fullname, true);
+                    $headerdata->userprefs = $CFG->wwwroot.'/user/edit.php?id='.$userid.'&amp;course='.$site->id;
 
-                    $posttext .= "\n \n";
-                    $posttext .= '=====================================================================';
-                    $posttext .= "\n \n";
-                    $posttext .= "$shortname -> $strforums -> ".format_string($forum->name,true);
-                    if ($discussion->name != $forum->name) {
-                        $posttext  .= " -> ".format_string($discussion->name,true);
-                    }
-                    $posttext .= "\n";
-                    $posttext .= $CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id;
-                    $posttext .= "\n";
+                    $posttext = get_string('digestmailheader', 'forum', $headerdata)."\n\n";
+                    $headerdata->userprefs = '<a target="_blank" href="'.$headerdata->userprefs.'">'.get_string('digestmailprefs', 'forum').'</a>';
 
-                    $posthtml .= "<p><font face=\"sans-serif\">".
-                    "<a target=\"_blank\" href=\"$CFG->wwwroot/course/view.php?id=$course->id\">$shortname</a> -> ".
-                    "<a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/index.php?id=$course->id\">$strforums</a> -> ".
-                    "<a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/view.php?f=$forum->id\">".format_string($forum->name,true)."</a>";
-                    if ($discussion->name == $forum->name) {
-                        $posthtml .= "</font></p>";
-                    } else {
-                        $posthtml .= " -> <a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/discuss.php?d=$discussion->id\">".format_string($discussion->name,true)."</a></font></p>";
-                    }
-                    $posthtml .= '<p>';
+                    $posthtml = "<head>";
+    /*                foreach ($CFG->stylesheets as $stylesheet) {
+                        //TODO: MDL-21120
+                        $posthtml .= '<link rel="stylesheet" type="text/css" href="'.$stylesheet.'" />'."\n";
+                    }*/
+                    $posthtml .= "</head>\n<body id=\"email\">\n";
+                    $posthtml .= '<p>'.get_string('digestmailheader', 'forum', $headerdata).'</p><br /><hr size="1" noshade="noshade" />';
 
-                    $postsarray = $discussionposts[$discussionid];
-                    sort($postsarray);
+                    foreach ($thesediscussions as $discussionid) {
 
-                    foreach ($postsarray as $postid) {
-                        $post = $posts[$postid];
+                        @set_time_limit(120);   // to be reset for each post
 
-                        if (array_key_exists($post->userid, $users)) { // we might know him/her already
-                            $userfrom = $users[$post->userid];
-                            if (!isset($userfrom->idnumber)) {
-                                $userfrom = $DB->get_record('user', array('id' => $userfrom->id));
-                                forum_cron_minimise_user_record($userfrom);
-                            }
+                        $userto->markposts     = array();
 
-                        } else if ($userfrom = $DB->get_record('user', array('id' => $post->userid))) {
-                            forum_cron_minimise_user_record($userfrom);
-                            if ($userscount <= FORUM_CRON_USER_CACHE) {
-                                $userscount++;
-                                $users[$userfrom->id] = $userfrom;
-                            }
+                        $discussion = $discussions[$discussionid];
+                        $forum      = $forums[$discussion->forum];
+                        $course     = $courses[$forum->course];
+                        $cm         = $coursemodules[$forum->id];
 
-                        } else {
-                            mtrace('Could not find user '.$post->userid);
-                            continue;
+                        //override language
+                        cron_setup_user($userto, $course);
+
+                        // Fill caches
+                        if (!isset($userto->viewfullnames[$forum->id])) {
+                            $modcontext = context_module::instance($cm->id);
+                            $userto->viewfullnames[$forum->id] = has_capability('moodle/site:viewfullnames', $modcontext);
+                        }
+                        if (!isset($userto->canpost[$discussion->id])) {
+                            $modcontext = context_module::instance($cm->id);
+                            $userto->canpost[$discussion->id] = forum_user_can_post($forum, $discussion, $userto, $cm, $course, $modcontext);
                         }
 
-                        if (!isset($userfrom->groups[$forum->id])) {
-                            if (!isset($userfrom->groups)) {
-                                $userfrom->groups = array();
+                        $strforums      = get_string('forums', 'forum');
+                        $canunsubscribe = ! forum_is_forcesubscribed($forum);
+                        $canreply       = $userto->canpost[$discussion->id];
+                        $shortname = format_string($course->shortname, true, array('context' => context_course::instance($course->id)));
+
+                        $posttext .= "\n \n";
+                        $posttext .= '=====================================================================';
+                        $posttext .= "\n \n";
+                        $posttext .= "$shortname -> $strforums -> ".format_string($forum->name,true);
+                        if ($discussion->name != $forum->name) {
+                            $posttext  .= " -> ".format_string($discussion->name,true);
+                        }
+                        $posttext .= "\n";
+                        $posttext .= $CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id;
+                        $posttext .= "\n";
+
+                        $posthtml .= "<p><font face=\"sans-serif\">".
+                        "<a target=\"_blank\" href=\"$CFG->wwwroot/course/view.php?id=$course->id\">$shortname</a> -> ".
+                        "<a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/index.php?id=$course->id\">$strforums</a> -> ".
+                        "<a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/view.php?f=$forum->id\">".format_string($forum->name,true)."</a>";
+                        if ($discussion->name == $forum->name) {
+                            $posthtml .= "</font></p>";
+                        } else {
+                            $posthtml .= " -> <a target=\"_blank\" href=\"$CFG->wwwroot/mod/forum/discuss.php?d=$discussion->id\">".format_string($discussion->name,true)."</a></font></p>";
+                        }
+                        $posthtml .= '<p>';
+
+                        $postsarray = $discussionposts[$discussionid];
+                        sort($postsarray);
+
+                        foreach ($postsarray as $postid) {
+                            $post = $posts[$postid];
+
+                            if (array_key_exists($post->userid, $users)) { // we might know him/her already
+                                $userfrom = $users[$post->userid];
+                                if (!isset($userfrom->idnumber)) {
+                                    $userfrom = $DB->get_record('user', array('id' => $userfrom->id));
+                                    forum_cron_minimise_user_record($userfrom);
+                                }
+
+                            } else if ($userfrom = $DB->get_record('user', array('id' => $post->userid))) {
+                                forum_cron_minimise_user_record($userfrom);
+                                if ($userscount <= FORUM_CRON_USER_CACHE) {
+                                    $userscount++;
+                                    $users[$userfrom->id] = $userfrom;
+                                }
+
+                            } else {
+                                mtrace('Could not find user '.$post->userid);
+                                continue;
+                            }
+
+                            if (!isset($userfrom->groups[$forum->id])) {
+                                if (!isset($userfrom->groups)) {
+                                    $userfrom->groups = array();
+                                    if (isset($users[$userfrom->id])) {
+                                        $users[$userfrom->id]->groups = array();
+                                    }
+                                }
+                                $userfrom->groups[$forum->id] = groups_get_all_groups($course->id, $userfrom->id, $cm->groupingid);
                                 if (isset($users[$userfrom->id])) {
-                                    $users[$userfrom->id]->groups = array();
+                                    $users[$userfrom->id]->groups[$forum->id] = $userfrom->groups[$forum->id];
                                 }
                             }
-                            $userfrom->groups[$forum->id] = groups_get_all_groups($course->id, $userfrom->id, $cm->groupingid);
-                            if (isset($users[$userfrom->id])) {
-                                $users[$userfrom->id]->groups[$forum->id] = $userfrom->groups[$forum->id];
+
+                            $userfrom->customheaders = array ("Precedence: Bulk");
+
+                            $maildigest = forum_get_user_maildigest_bulk($digests, $userto, $forum->id);
+                            if ($maildigest == 2) {
+                                // Subjects and link only
+                                $posttext .= "\n";
+                                $posttext .= $CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id;
+                                $by = new stdClass();
+                                $by->name = fullname($userfrom);
+                                $by->date = userdate($post->modified);
+                                $posttext .= "\n".format_string($post->subject,true).' '.get_string("bynameondate", "forum", $by);
+                                $posttext .= "\n---------------------------------------------------------------------";
+
+                                $by->name = "<a target=\"_blank\" href=\"$CFG->wwwroot/user/view.php?id=$userfrom->id&amp;course=$course->id\">$by->name</a>";
+                                $posthtml .= '<div><a target="_blank" href="'.$CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id.'#p'.$post->id.'">'.format_string($post->subject,true).'</a> '.get_string("bynameondate", "forum", $by).'</div>';
+
+                            } else {
+                                // The full treatment
+                                $posttext .= forum_make_mail_text($course, $cm, $forum, $discussion, $post, $userfrom, $userto, true);
+                                $posthtml .= forum_make_mail_post($course, $cm, $forum, $discussion, $post, $userfrom, $userto, false, $canreply, true, false);
+
+                            // Create an array of postid's for this user to mark as read.
+                                if (!$CFG->forum_usermarksread) {
+                                    $userto->markposts[$post->id] = $post->id;
+                                }
                             }
                         }
-
-                        $userfrom->customheaders = array ("Precedence: Bulk");
-
-                        $maildigest = forum_get_user_maildigest_bulk($digests, $userto, $forum->id);
-                        if ($maildigest == 2) {
-                            // Subjects and link only
-                            $posttext .= "\n";
-                            $posttext .= $CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id;
-                            $by = new stdClass();
-                            $by->name = fullname($userfrom);
-                            $by->date = userdate($post->modified);
-                            $posttext .= "\n".format_string($post->subject,true).' '.get_string("bynameondate", "forum", $by);
-                            $posttext .= "\n---------------------------------------------------------------------";
-
-                            $by->name = "<a target=\"_blank\" href=\"$CFG->wwwroot/user/view.php?id=$userfrom->id&amp;course=$course->id\">$by->name</a>";
-                            $posthtml .= '<div><a target="_blank" href="'.$CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id.'#p'.$post->id.'">'.format_string($post->subject,true).'</a> '.get_string("bynameondate", "forum", $by).'</div>';
-
+                        $footerlinks = array();
+                        if ($canunsubscribe) {
+                            $footerlinks[] = "<a href=\"$CFG->wwwroot/mod/forum/subscribe.php?id=$forum->id\">" . get_string("unsubscribe", "forum") . "</a>";
                         } else {
-                            // The full treatment
-                            $posttext .= forum_make_mail_text($course, $cm, $forum, $discussion, $post, $userfrom, $userto, true);
-                            $posthtml .= forum_make_mail_post($course, $cm, $forum, $discussion, $post, $userfrom, $userto, false, $canreply, true, false);
-
-                        // Create an array of postid's for this user to mark as read.
-                            if (!$CFG->forum_usermarksread) {
-                                $userto->markposts[$post->id] = $post->id;
-                            }
+                            $footerlinks[] = get_string("everyoneissubscribed", "forum");
                         }
+                        $footerlinks[] = "<a href='{$CFG->wwwroot}/mod/forum/index.php?id={$forum->course}'>" . get_string("digestmailpost", "forum") . '</a>';
+                        $posthtml .= "\n<div class='mdl-right'><font size=\"1\">" . implode('&nbsp;', $footerlinks) . '</font></div>';
+                        $posthtml .= '<hr size="1" noshade="noshade" /></p>';
                     }
-                    $footerlinks = array();
-                    if ($canunsubscribe) {
-                        $footerlinks[] = "<a href=\"$CFG->wwwroot/mod/forum/subscribe.php?id=$forum->id\">" . get_string("unsubscribe", "forum") . "</a>";
+                    $posthtml .= '</body>';
+
+                    if (empty($userto->mailformat) || $userto->mailformat != 1) {
+                        // This user DOESN'T want to receive HTML
+                        $posthtml = '';
+                    }
+
+                    $attachment = $attachname='';
+                    // Directly email forum digests rather than sending them via messaging, use the
+                    // site shortname as 'from name', the noreply address will be used by email_to_user.
+                    $mailresult = email_to_user($userto, $site->shortname, $postsubject, $posttext, $posthtml, $attachment, $attachname);
+
+                    if (!$mailresult) {
+                        mtrace("ERROR!");
+                        echo "Error: mod/forum/cron.php: Could not send out digest mail to user $userto->id ($userto->email)... not trying again.\n";
+                        add_to_log($course->id, 'forum', 'mail digest error', '', '', $cm->id, $userto->id);
+                        $mailerrors = true;
                     } else {
-                        $footerlinks[] = get_string("everyoneissubscribed", "forum");
+                        // Mark post as read if forum_usermarksread is set off
+                        forum_tp_mark_posts_read($userto, $userto->markposts);
                     }
-                    $footerlinks[] = "<a href='{$CFG->wwwroot}/mod/forum/index.php?id={$forum->course}'>" . get_string("digestmailpost", "forum") . '</a>';
-                    $posthtml .= "\n<div class='mdl-right'><font size=\"1\">" . implode('&nbsp;', $footerlinks) . '</font></div>';
-                    $posthtml .= '<hr size="1" noshade="noshade" /></p>';
-                }
-                $posthtml .= '</body>';
-
-                if (empty($userto->mailformat) || $userto->mailformat != 1) {
-                    // This user DOESN'T want to receive HTML
-                    $posthtml = '';
-                }
-
-                $attachment = $attachname='';
-                // Directly email forum digests rather than sending them via messaging, use the
-                // site shortname as 'from name', the noreply address will be used by email_to_user.
-                $mailresult = email_to_user($userto, $site->shortname, $postsubject, $posttext, $posthtml, $attachment, $attachname);
-
-                if (!$mailresult) {
-                    mtrace("ERROR!");
-                    echo "Error: mod/forum/cron.php: Could not send out digest mail to user $userto->id ($userto->email)... not trying again.\n";
-                    add_to_log($course->id, 'forum', 'mail digest error', '', '', $cm->id, $userto->id);
-                } else {
-                    mtrace("success.");
                     $usermailcount++;
-
-                    // Mark post as read if forum_usermarksread is set off
-                    forum_tp_mark_posts_read($userto, $userto->markposts);
+                }
+                $usercount++;
+                if (!$mailerrors) {
+                    mtrace("success.");
                 }
             }
         }
@@ -1092,7 +1114,8 @@ function forum_cron() {
     cron_setup_user();
 
     if (!empty($usermailcount)) {
-        mtrace(get_string('digestsentusers', 'forum', $usermailcount));
+        mtrace(get_string('digestsentusers', 'forum', $usercount));
+        mtrace(get_string('digestsentusermails', 'forum', $usermailcount));
     }
 
     if (!empty($CFG->forum_lastreadclean)) {
