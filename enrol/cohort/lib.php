@@ -232,6 +232,7 @@ class enrol_cohort_plugin extends enrol_plugin {
             'synced',
             'enrolcohort',
             'enrolcohortusers',
+            'finishenrollingusers',
             ), 'enrol');
         $button->strings_for_js(array(
             'ajaxmore',
