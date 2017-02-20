@@ -1091,6 +1091,7 @@ $string['taskeventscron'] = 'Background processing for events';
 $string['taskfiletrashcleanup'] = 'Cleanup files in trash';
 $string['taskglobalsearchindex'] = 'Global search indexing';
 $string['taskglobalsearchoptimize'] = 'Global search index optimization';
+$string['taskgradecleanupcron'] = 'Cleanup tasks for gradebook';
 $string['taskgradecron'] = 'Background processing for gradebook';
 $string['tasklegacycron'] = 'Legacy cron processing for plugins';
 $string['taskmessagingcleanup'] = 'Background processing for messaging';

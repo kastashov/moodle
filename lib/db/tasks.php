@@ -150,6 +150,15 @@ $tasks = array(
         'month' => '*'
     ),
     array(
+        'classname' => 'core\task\grade_cleanup_cron_task',
+        'blocking' => 0,
+        'minute' => 'R',
+        'hour' => '3',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*'
+    ),
+    array(
         'classname' => 'core\task\events_cron_task',
         'blocking' => 0,
         'minute' => '*',

@@ -1556,8 +1556,11 @@ function grade_cron() {
         $grade_grade->update('locktime');
     }
     $rs->close();
+}
 
-    //TODO: do not run this cleanup every cron invocation
+function grade_cleanup_cron() {
+    global $CFG, $DB;
+
     // cleanup history tables
     if (!empty($CFG->gradehistorylifetime)) {  // value in days
         $histlifetime = $now - ($CFG->gradehistorylifetime * 3600 * 24);
