@@ -102,6 +102,13 @@ function add_moduleinfo($moduleinfo, $course, $mform = null) {
         $newcm->showdescription = 0;
     }
 
+    // Put an explicit edit lock on this course.
+    global $USER;
+    $sql = "REPLACE INTO {course_locks} SET courseid = :courseid , userid = :userid , timestarted = :timestarted";
+    $userid = (is_object($USER) && !empty($USER->id)) ? $USER->id : 0;
+    $params = array('courseid' => $course->id, 'userid' => $userid, 'timestarted' => time());
+    $DB->execute($sql, $params);
+
     // From this point we make database changes, so start transaction.
     $transaction = $DB->start_delegated_transaction();
 
@@ -173,6 +180,9 @@ function add_moduleinfo($moduleinfo, $course, $mform = null) {
 
     $moduleinfo = edit_module_post_actions($moduleinfo, $course);
     $transaction->allow_commit();
+
+    // Release the lock we put earlier in this function.
+    $DB->delete_records('course_locks', array('courseid' => $course->id));
 
     return $moduleinfo;
 }

@@ -2555,5 +2555,23 @@ function xmldb_main_upgrade($oldversion) {
         upgrade_main_savepoint(true, 2017021400.00);
     }
 
+    if ($oldversion < 2017022700.00) {
+        $table = new xmldb_table('course_locks');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timestarted', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+
+        // Adding keys
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+        $table->add_key('courseid', XMLDB_KEY_UNIQUE, array('courseid'));
+
+        // Conditionally launch create table
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+    }
+
     return true;
 }

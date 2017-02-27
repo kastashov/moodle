@@ -430,6 +430,23 @@ abstract class moodleform_mod extends moodleform {
             $errors = array_merge($errors, $pluginerrors);
         }
 
+        // First, clear expired locks, shouldn't be any (in theory), but just in case.
+        $sql = "DELETE FROM {course_locks} WHERE timestarted < :time";
+        $now = time();
+        $time = $now - 600; // All locks should be released within 10 minutes.
+        $params = array('time' => $time);
+        $DB->execute($sql, $params);
+        // Check if the course has an active edit lock on it.
+        $details = '';
+        if ($row = $DB->get_record('course_locks', array('courseid' => $COURSE->id))) {
+            if (!empty($row->userid)) {
+                $user = $DB->get_record('user', array('id' => $row->userid));
+                $details = ' (' . fullname($user) . ')';
+            }
+            $errors['name'] = "This unit is being edited by another user{$details}.
+                    Please try saving this page again in a few minutes.";
+        }
+
         return $errors;
     }
 
