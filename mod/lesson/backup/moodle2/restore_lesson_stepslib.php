@@ -313,22 +313,5 @@ class restore_lesson_activity_structure_step extends restore_activity_structure_
             $DB->update_record('lesson_answers', $badanswer);
         }
         $badanswers->close();
-
-        // Replay the upgrade step 2015032700.
-        // Delete any orphaned lesson_branch record.
-        if ($DB->get_dbfamily() === 'mysql') {
-            $sql = "DELETE {lesson_branch}
-                      FROM {lesson_branch}
-                 LEFT JOIN {lesson_pages}
-                        ON {lesson_branch}.pageid = {lesson_pages}.id
-                     WHERE {lesson_pages}.id IS NULL";
-        } else {
-            $sql = "DELETE FROM {lesson_branch}
-               WHERE NOT EXISTS (
-                         SELECT 'x' FROM {lesson_pages}
-                          WHERE {lesson_branch}.pageid = {lesson_pages}.id)";
-        }
-
-        $DB->execute($sql);
     }
 }
